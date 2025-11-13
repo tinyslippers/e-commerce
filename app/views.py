@@ -48,40 +48,64 @@ breaker = pybreaker.CircuitBreaker(fail_max=3, reset_timeout=15, name="bank_api_
 def login_required(view_func):
     @wraps(view_func)
     def wrapper(*args, **kwargs):
-        token = session.get("access_token")
-        if not token:
+        access_token = session.get("access_token")
+        refresh_token = session.get("refresh_token")
+
+        if not access_token:
             return redirect(url_for("main.login"))
 
+        # Première tentative de vérification de l'access token
         try:
             resp = requests.post(
                 f"{AUTH_SERVICE_URL}/verify",
-                json={"token": token},
+                json={"token": access_token},
                 timeout=2,
             )
         except requests.RequestException:
             # Si le service d'auth est down, on force une reconnexion
-            session.pop("access_token", None)
-            session.pop("user_id", None)
+            session.clear()
             return redirect(url_for("main.login"))
 
-        if resp.status_code != 200:
-            session.pop("access_token", None)
-            session.pop("user_id", None)
-            return redirect(url_for("main.login"))
+        data = resp.json() if resp.content else {}
 
-        data = resp.json()
-        if not data.get("valid"):
-            session.pop("access_token", None)
-            session.pop("user_id", None)
-            return redirect(url_for("main.login"))
+        if resp.status_code == 200 and data.get("valid"):
+            # Token encore valide : on met à jour les infos utilisateur et on passe
+            user_info = data.get("user", {})
+            session["user_id"] = user_info.get("sub")
+            if user_info.get("username"):
+                session["username"] = user_info.get("username")
+            return view_func(*args, **kwargs)
 
-        user_info = data.get("user", {})
-        # On garde user_id et username en session pour les autres routes
-        session["user_id"] = user_info.get("sub")
-        if user_info.get("username"):
-            session["username"] = user_info.get("username")
+        # Ici : soit status != 200, soit valid == False
+        error = data.get("error")
 
-        return view_func(*args, **kwargs)
+        # Si le token est expiré et qu'on a un refresh token, on tente un refresh
+        if error == "Token expiré" and refresh_token:
+            try:
+                r = requests.post(
+                    f"{AUTH_SERVICE_URL}/refresh",
+                    json={"refresh_token": refresh_token},
+                    timeout=2,
+                )
+            except requests.RequestException:
+                session.clear()
+                return redirect(url_for("main.login"))
+
+            if r.status_code == 200 and r.content:
+                new_data = r.json()
+                new_access = new_data.get("access_token")
+                if new_access:
+                    # On met à jour le token d'accès et les infos utilisateur
+                    session["access_token"] = new_access
+                    session["user_id"] = new_data.get("user_id")
+                    session["username"] = new_data.get("username")
+                    # On laisse passer la requête protégée
+                    return view_func(*args, **kwargs)
+
+        # Dans tous les autres cas : on nettoie la session et on renvoie au login
+        session.clear()
+        return redirect(url_for("main.login"))
+
     return wrapper
 
 def get_cart_counter() -> Counter:
@@ -155,11 +179,16 @@ def login():
             return render_template("login.html", error=error_msg)
 
         data = resp.json()
-        token = data.get("access_token")
-        if not token:
+        access_token = data.get("access_token")
+        if not access_token:
             return render_template("login.html", error="Réponse invalide du service d’authentification.")
 
-        session["access_token"] = token
+        # Stockage des tokens en session
+        session["access_token"] = access_token
+        refresh_token = data.get("refresh_token")
+        if refresh_token:
+            session["refresh_token"] = refresh_token
+
         # On garde username saisi pour l’affichage, en attendant de récupérer celui du token
         session["username"] = data.get("username", username)
         session["user_id"] = data.get("user_id")
