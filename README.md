@@ -1,4 +1,4 @@
-# E-Commerce — Microservices Flask
+# E-Commerce — Microservices Flask  Baptiste RODRIGUES
 
 Ce projet est une application e-commerce en **Python/Flask**, organisée en microservices simples :
 
