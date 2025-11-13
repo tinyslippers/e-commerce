@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Historique des commandes</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Arial, sans-serif; margin:0; padding:0; background:#f6f7fb; color:#222; }
+    header { padding:20px 24px; background:#fff; border-bottom:1px solid #eaecef; }
+    main { max-width: 920px; margin:24px auto; padding:0 16px; }
+    h1 { margin:0 0 8px; font-size:24px; }
+    .subtitle { color:#666; margin:0 0 16px; }
+    .btn { display:inline-block; padding:10px 16px; border-radius:8px; text-decoration:none; border:1px solid #d0d7de; background:#fff; }
+    .card { background:#fff; border:1px solid #eaecef; border-radius:12px; padding:16px; margin-bottom:12px; }
+    .row { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .title { font-weight:600; }
+    .muted { color:#666; font-size:14px; }
+    .items { margin-top:8px; }
+    .item-line { display:flex; justify-content:space-between; }
+    .total { font-weight:700; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="{{ url_for('main.articles') }}" class="btn">⟵ Retour au magasin</a>
+    <h1>Historique de {{ username }}</h1>
+    <p class="subtitle">Vos commandes enregistrées</p>
+  </header>
+
+  <main>
+    {% if not orders %}
+      <p>Vous n'avez pas encore de commandes.</p>
+    {% else %}
+      {% for order in orders %}
+        <div class="card">
+          <div class="row">
+            <div>
+              <div class="title">Commande</div>
+              <div class="muted">{{ order.datetime }}</div>
+              <div class="muted">Transaction: {{ order.transaction_id }}</div>
+            </div>
+            <div class="total">{{ '%.2f'|format(order.total) }} €</div>
+          </div>
+          <div class="items">
+            {% for it in order["items"] or [] %}
+              <div class="item-line">
+                <div>{{ it.titre }} × {{ it.qty }}</div>
+                <div>{{ '%.2f'|format(it.subtotal) }} €</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </main>
+</body>
+</html>

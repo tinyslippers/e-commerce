@@ -1,0 +1,63 @@
+{
+  "users": {
+    "baptiste": {
+      "password": "",
+      "orders": [
+        {
+          "transaction_id": "tx-1762252584",
+          "datetime": "2025-11-04T10:36:24.191762Z",
+          "items": [
+            {
+              "id": 1,
+              "titre": "Clavier mécanique",
+              "prix": 79.9,
+              "qty": 1,
+              "subtotal": 79.9
+            },
+            {
+              "id": 2,
+              "titre": "Souris sans fil",
+              "prix": 39.9,
+              "qty": 1,
+              "subtotal": 39.9
+            }
+          ],
+          "total": 119.8
+        }
+      ]
+    },
+    "elodie": {
+      "password": "ee",
+      "orders": [
+        {
+          "transaction_id": "tx-1762252999",
+          "datetime": "2025-11-04T10:43:19.641638Z",
+          "items": [
+            {
+              "id": 3,
+              "titre": "Écran 27\"",
+              "prix": 229.0,
+              "qty": 1,
+              "subtotal": 229.0
+            }
+          ],
+          "total": 229.0
+        },
+        {
+          "transaction_id": "tx-1762253153",
+          "datetime": "2025-11-04T10:45:53.981268Z",
+          "items": [
+            {
+              "id": 1,
+              "titre": "Clavier mécanique",
+              "prix": 79.9,
+              "qty": 1,
+              "subtotal": 79.9
+            }
+          ],
+          "total": 79.9
+        }
+      ]
+    }
+  }
+}

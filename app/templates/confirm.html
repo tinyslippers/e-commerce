@@ -1,0 +1,21 @@
+
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmation d'achat</title>
+</head>
+<body>
+    <h1>Félicitations 🎉</h1>
+    <p>
+        Bravo d’avoir acheté l’article <strong>{{ article.titre }}</strong>,
+        <strong>{{ username }}</strong> !
+    </p>
+
+    <p>
+        <a href="{{ url_for('main.articles') }}">Retour à la liste des articles</a>
+    </p>
+</body>
+</html>

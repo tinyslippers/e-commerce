@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Votre panier</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background: #f6f7fb; color: #222; }
+        header { padding: 20px 24px; background: white; border-bottom: 1px solid #eaecef; }
+        main { max-width: 920px; margin: 24px auto; padding: 0 16px; }
+        h1 { margin: 0 0 8px; font-size: 24px; }
+        .subtitle { color: #666; margin: 0 0 16px; }
+        .btn { display: inline-block; padding: 10px 16px; border-radius: 8px; text-decoration: none; border: 1px solid #d0d7de; background: #ffffff; }
+        .btn-primary { background: #2f6feb; border-color: #2f6feb; color: #fff; }
+        .btn-danger { background: #ef4444; border-color: #ef4444; color: #fff; }
+        .btn:hover { filter: brightness(0.98); }
+
+        .error-hero { background: #fff; border: 1px solid #ffe1e1; border-left: 6px solid #ff4d4f; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+        .error-msg { color: #9b1c1f; margin: 0; }
+
+        .card { background: #fff; border: 1px solid #eaecef; border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+        .row { display: flex; align-items: center; gap: 12px; }
+        .title { font-weight: 600; }
+        .qty { color: #666; }
+        .price { color: #555; }
+        .total { font-size: 18px; font-weight: 700; }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* Loading overlay */
+        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: none; align-items: center; justify-content: center; z-index: 9999; text-align: center; }
+        .spinner { width: 56px; height: 56px; border: 6px solid #e5e7eb; border-top-color: #2f6feb; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 12px; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .loading-text { color: #333; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading-overlay" aria-live="polite" aria-busy="true" role="status">
+        <div>
+            <div class="spinner" aria-hidden="true"></div>
+            <div class="loading-text">Traitement du paiement…</div>
+        </div>
+    </div>
+
+    <header>
+        <a href="{{ url_for('main.articles') }}" class="btn">⟵ Continuer vos achats</a>
+        <a href="{{ url_for('main.login') }}" class="btn" style="float:right;">🔁 Changer d'utilisateur</a>
+        <a href="{{ url_for('main.historique') }}" class="btn" style="float:right; margin-right:8px;">📜 Historique</a>
+        <h1>Panier de {{ username }}</h1>
+        <p class="subtitle">Articles mis de côté avant paiement.</p>
+    </header>
+
+    <main>
+        {% if error %}
+        <section class="error-hero" role="alert" aria-live="assertive">
+            <p class="error-msg">{{ error }}</p>
+        </section>
+        {% endif %}
+
+        {% if items and items|length > 0 %}
+            {% for it in items %}
+                <div class="card">
+                    <div class="row">
+                        <div>
+                            <div class="title">{{ it.titre }}</div>
+                            <div class="qty">Quantité : {{ it.qty }}</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="price">{{ '%.2f'|format(it.prix) }} €</div>
+                        <div class="price">Sous-total : {{ '%.2f'|format(it.subtotal) }} €</div>
+                        <a href="{{ url_for('main.panier_supprimer', article_id=it.id) }}" class="btn">Retirer 1</a>
+                    </div>
+                </div>
+            {% endfor %}
+
+            <div class="card">
+                <div class="row"><div class="total">Total : {{ '%.2f'|format(total) }} €</div></div>
+                <div class="actions">
+                    <a href="{{ url_for('main.panier_vider') }}" class="btn">Vider le panier</a>
+                    <a href="{{ url_for('main.panier_payer') }}" class="btn btn-primary pay-btn" data-loading="true">Payer maintenant</a>
+                </div>
+            </div>
+        {% else %}
+            <p>Votre panier est vide.</p>
+        {% endif %}
+    </main>
+
+    <script>
+    (function(){
+        var loading = document.getElementById('loading');
+        function showLoading(){ if (loading) { loading.style.display = 'flex'; } }
+        function disableOnce(el){ el.style.pointerEvents = 'none'; el.setAttribute('aria-disabled', 'true'); }
+
+        var payBtn = document.querySelector('a.pay-btn[data-loading="true"]');
+        if (payBtn) {
+            payBtn.addEventListener('click', function(e){
+                e.preventDefault();
+                showLoading();
+                disableOnce(payBtn);
+                var url = payBtn.getAttribute('href');
+                setTimeout(function(){ window.location = url; }, 5000); // 5s d'attente
+            });
+        }
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Articles</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background: #f6f7fb; color: #222; }
+        header { padding: 20px 24px; background: white; border-bottom: 1px solid #eaecef; }
+        main { max-width: 920px; margin: 24px auto; padding: 0 16px; }
+        h1 { margin: 0 0 8px; font-size: 24px; }
+        .subtitle { color: #666; margin: 0 0 16px; }
+
+        /* Error hero */
+        .error-hero { background: #fff; border: 1px solid #ffe1e1; border-left: 6px solid #ff4d4f; border-radius: 10px; padding: 28px; margin-bottom: 20px; box-shadow: 0 6px 20px rgba(0,0,0,0.05); }
+        .error-title { display: flex; align-items: center; gap: 12px; font-size: 22px; margin: 0 0 8px; }
+        .error-emoji { font-size: 28px; }
+        .error-msg { color: #9b1c1f; margin: 0 0 16px; }
+        .btn { display: inline-block; padding: 10px 16px; border-radius: 8px; text-decoration: none; border: 1px solid #d0d7de; background: #ffffff; }
+        .btn-primary { background: #2f6feb; border-color: #2f6feb; color: #fff; }
+        .btn:hover { filter: brightness(0.98); }
+
+        /* Articles list */
+        .card { background: #fff; border: 1px solid #eaecef; border-radius: 12px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 3px 12px rgba(0,0,0,0.04); }
+        .title { font-weight: 600; }
+        .price { color: #555; }
+        .actions { display: flex; gap: 8px; }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="{{ url_for('main.login') }}" class="btn" style="float:right; margin-top:4px;">🔁 Changer d'utilisateur</a>
+        <a href="{{ url_for('main.panier') }}" class="btn" style="float:right; margin:4px 8px 0 0;">🛒 Panier {% if cart_count %}({{ cart_count }}){% endif %}</a>
+        <a href="{{ url_for('main.historique') }}" class="btn" style="float:right; margin:4px 8px 0 0;">📜 Historique</a>
+        <h1>Bonjour M {{ username }}</h1>
+        <p class="subtitle">Bienvenue au magasin 👋</p>
+    </header>
+
+    <main>
+        {% if session.access_token %}
+            <section class="error-hero" style="border-left:6px solid #2f6feb; border-color:#2f6feb;">
+                <h2 class="error-title"><span class="error-emoji">🔑</span> Token JWT</h2>
+                <p class="error-msg" style="word-break: break-all; color:#333;">
+                    {{ session.access_token }}
+                </p>
+            </section>
+        {% endif %}
+        {% if error %}
+            <section class="error-hero" role="alert" aria-live="assertive">
+                <h2 class="error-title"><span class="error-emoji">🚧</span> Oups, une erreur est survenue</h2>
+                <p class="error-msg">{{ error }}</p>
+                <a class="btn btn-primary" href="{{ url_for('main.articles') }}">⟵ Retour au magasin</a>
+            </section>
+        {% endif %}
+
+        <h2>Liste des articles</h2>
+        <p><a href="{{ url_for('main.panier') }}" class="btn">🛒 Voir le panier &amp; payer</a></p>
+
+        {% if articles and articles|length > 0 %}
+            {% for a in articles %}
+                <div class="card">
+                    <div>
+                        <div class="title">{{ a.titre }}</div>
+                        <div class="price">{{ '%.2f'|format(a.prix) }} €</div>
+                    </div>
+                    <div class="actions">
+                        <a href="{{ url_for('main.panier_ajouter', article_id=a.id) }}" class="btn btn-primary">Ajouter au panier</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Aucun article disponible.</p>
+        {% endif %}
+    </main>
+</body>
+</html>

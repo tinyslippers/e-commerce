@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmation d'achat</title>
+    <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background: #f6f7fb; color: #222; }
+        header { padding: 20px 24px; background: white; border-bottom: 1px solid #eaecef; }
+        main { max-width: 920px; margin: 24px auto; padding: 0 16px; }
+        h1 { margin: 0 0 8px; font-size: 24px; }
+        .subtitle { color: #666; margin: 0 0 16px; }
+
+        .success-hero { background: #fff; border: 1px solid #d7f3df; border-left: 6px solid #22c55e; border-radius: 10px; padding: 28px; margin-bottom: 20px; box-shadow: 0 6px 20px rgba(0,0,0,0.05); }
+        .success-title { display: flex; align-items: center; gap: 12px; font-size: 22px; margin: 0 0 8px; }
+        .success-emoji { font-size: 28px; }
+        .success-msg { color: #135d2a; margin: 0 0 16px; }
+
+        .btn { display: inline-block; padding: 10px 16px; border-radius: 8px; text-decoration: none; border: 1px solid #d0d7de; background: #ffffff; }
+        .btn-primary { background: #22c55e; border-color: #22c55e; color: #fff; }
+        .btn:hover { filter: brightness(0.98); }
+
+        .card { background: #fff; border: 1px solid #eaecef; border-radius: 12px; padding: 16px; margin-top: 12px; box-shadow: 0 3px 12px rgba(0,0,0,0.04); }
+        .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+        .title { font-weight: 600; }
+        .price { color: #555; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Merci pour votre achat, {{ username }} 🎉</h1>
+        <p class="subtitle">Votre commande a bien été prise en compte.</p>
+    </header>
+
+    <main>
+        <section class="success-hero" role="status" aria-live="polite">
+            <h2 class="success-title"><span class="success-emoji">✅</span> Bravo pour votre achat !</h2>
+            <p class="success-msg">
+                Vous venez d'acheter <strong>{{ article.titre }}</strong>. Nous espérons que ce produit vous plaira.
+            </p>
+            <div class="actions">
+                <a class="btn btn-primary" href="{{ url_for('main.articles') }}">⟵ Retour au magasin</a>
+                <a class="btn" href="{{ url_for('main.articles') }}">Découvrir d'autres articles</a>
+            </div>
+        </section>
+
+        <div class="card">
+            <div class="row">
+                <div>
+                    <div class="title">Article</div>
+                    <div>{{ article.titre }}</div>
+                </div>
+                <div>
+                    <div class="title">Prix</div>
+                    <div class="price">{% if article.prix is defined %}{{ '%.2f'|format(article.prix) }} €{% else %}—{% endif %}</div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
