@@ -11,11 +11,17 @@ SECRET_KEY = "change-me-super-secret"
 
 # Pour le TP : un "vrai-faux" user en dur
 # Tu pourras plus tard le remplacer par une vraie base ou un appel au User Service.
+
 DUMMY_USER = {
     "id": 1,
     "username": "baptiste",
     "password": "password123",  # en vrai : hashé !
     "email": "baptiste@example.com",
+}
+
+# Petite "base" d'utilisateurs en mémoire pour le TP
+USERS = {
+    DUMMY_USER["username"]: DUMMY_USER
 }
 
 
@@ -72,21 +78,69 @@ def login():
     if not username or not password:
         return jsonify({"error": "Identifiants manquants"}), 400
 
-    # Vérification ultra simplifiée : un seul user en dur
-    if username != DUMMY_USER["username"] or password != DUMMY_USER["password"]:
+    # On récupère l'utilisateur depuis la "base" en mémoire
+    user = USERS.get(username)
+    if not user or user["password"] != password:
         return jsonify({"error": "Identifiants invalides"}), 401
 
-    access_token = generate_access_token(DUMMY_USER["id"], DUMMY_USER["username"])
-    refresh_token = generate_refresh_token(DUMMY_USER["id"], DUMMY_USER["username"])
+    access_token = generate_access_token(user["id"], user["username"])
+    refresh_token = generate_refresh_token(user["id"], user["username"])
 
     return jsonify({
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "Bearer",
-        "user_id": DUMMY_USER["id"],
-        "username": DUMMY_USER["username"],
-        "email": DUMMY_USER["email"],
+        "user_id": user["id"],
+        "username": user["username"],
+        "email": user["email"],
     }), 200
+
+
+# Endpoint de création de compte
+@app.route("/register", methods=["POST"])
+def register():
+    """
+    Création d'un nouvel utilisateur.
+    Reçoit : { "username": "...", "password": "..." }
+    Renvoie : access_token + refresh_token comme /login
+    """
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    password = (data.get("password") or "").strip()
+
+    if not username or not password:
+        return jsonify({"error": "Champs username et password obligatoires."}), 400
+
+    # Vérifier que le username n'est pas déjà pris
+    if username in USERS:
+        return jsonify({"error": "Nom d'utilisateur déjà utilisé."}), 400
+
+    # Générer un nouvel id simple à partir des utilisateurs existants
+    if USERS:
+        new_id = max(int(u["id"]) for u in USERS.values()) + 1
+    else:
+        new_id = 1
+
+    new_user = {
+        "id": new_id,
+        "username": username,
+        "password": password,  # ⚠️ en vrai : à hasher !
+        "email": f"{username}@example.com",
+    }
+
+    USERS[username] = new_user
+
+    access_token = generate_access_token(new_user["id"], new_user["username"])
+    refresh_token = generate_refresh_token(new_user["id"], new_user["username"])
+
+    return jsonify({
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "Bearer",
+        "user_id": new_user["id"],
+        "username": new_user["username"],
+        "email": new_user["email"],
+    }), 201
 
 
 @app.route("/verify", methods=["POST"])
