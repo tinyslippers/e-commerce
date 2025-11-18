@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
-import jwt
+from authlib.jose import jwt
 import datetime
+from authlib.jose.errors import ExpiredTokenError, JoseError
+import time
 
 app = Flask(__name__)
 
@@ -19,16 +21,18 @@ DUMMY_USER = {
 
 def generate_access_token(user_id: int, username: str) -> str:
     """
-    Génère un access token valable 5 minutes.
+    Génère un access token (JWT) valable 5 minutes avec Authlib.
     """
+    now = int(time.time())
+    header = {"alg": "HS256"}
     payload = {
         "sub": str(user_id),
         "username": username,
         "type": "access",
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=5),
-        "iat": datetime.datetime.utcnow(),
+        "iat": now,
+        "exp": now + 300,  # 5 minutes
     }
-    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    token = jwt.encode(header, payload, SECRET_KEY)
     if isinstance(token, bytes):
         token = token.decode("utf-8")
     return token
@@ -36,16 +40,18 @@ def generate_access_token(user_id: int, username: str) -> str:
 
 def generate_refresh_token(user_id: int, username: str) -> str:
     """
-    Génère un refresh token valable 1 heure.
+    Génère un refresh token (JWT) valable 1 heure avec Authlib.
     """
+    now = int(time.time())
+    header = {"alg": "HS256"}
     payload = {
         "sub": str(user_id),
         "username": username,
         "type": "refresh",
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
-        "iat": datetime.datetime.utcnow(),
+        "iat": now,
+        "exp": now + 3600,  # 1 heure
     }
-    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    token = jwt.encode(header, payload, SECRET_KEY)
     if isinstance(token, bytes):
         token = token.decode("utf-8")
     return token
@@ -98,25 +104,22 @@ def verify():
         return jsonify({"error": "Token manquant"}), 400
 
     try:
-        decoded = jwt.decode(
-            token,
-            SECRET_KEY,
-            algorithms=["HS256"],
-            options={"require": ["exp"]}
-        )
-    except jwt.ExpiredSignatureError:
+        claims = jwt.decode(token, SECRET_KEY)
+        # Valide exp, iat, etc. ; lève ExpiredTokenError si expiré
+        claims.validate()
+    except ExpiredTokenError:
         return jsonify({"valid": False, "error": "Token expiré"}), 401
-    except jwt.InvalidTokenError as e:
+    except JoseError as e:
         print("DEBUG /verify invalid token:", repr(e))
         return jsonify({"valid": False, "error": "Token invalide"}), 401
 
-    if decoded.get("type") != "access":
+    if claims.get("type") != "access":
         return jsonify({"valid": False, "error": "Mauvais type de token"}), 401
 
-    # decoded contient le payload du token (sub, username, exp, etc.)
+    # claims contient le payload du token (sub, username, exp, etc.)
     user_info = {
-        "sub": decoded.get("sub"),
-        "username": decoded.get("username"),
+        "sub": claims.get("sub"),
+        "username": claims.get("username"),
     }
 
     return jsonify({"valid": True, "user": user_info}), 200
@@ -134,27 +137,23 @@ def refresh():
         return jsonify({"error": "Refresh token manquant"}), 400
 
     try:
-        decoded = jwt.decode(
-            refresh_token,
-            SECRET_KEY,
-            algorithms=["HS256"],
-            options={"require": ["exp"]}
-        )
-    except jwt.ExpiredSignatureError:
+        claims = jwt.decode(refresh_token, SECRET_KEY)
+        claims.validate()
+    except ExpiredTokenError:
         return jsonify({"error": "Refresh token expiré"}), 401
-    except jwt.InvalidTokenError as e:
+    except JoseError as e:
         print("DEBUG /refresh invalid token:", repr(e))
         return jsonify({"error": "Refresh token invalide"}), 401
 
-    if decoded.get("type") != "refresh":
+    if claims.get("type") != "refresh":
         return jsonify({"error": "Mauvais type de token"}), 401
 
-    new_access = generate_access_token(decoded["sub"], decoded["username"])
+    new_access = generate_access_token(int(claims["sub"]), claims["username"])
 
     return jsonify({
         "access_token": new_access,
-        "user_id": decoded["sub"],
-        "username": decoded["username"],
+        "user_id": claims["sub"],
+        "username": claims["username"],
     }), 200
 
 
