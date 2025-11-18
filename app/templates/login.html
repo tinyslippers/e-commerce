@@ -105,12 +105,19 @@
             <div class="error">{{ error }}</div>
         {% endif %}
 
+        <!-- Formulaire de connexion -->
         <form method="POST">
             <label for="username">Nom d'utilisateur</label>
             <input type="text" id="username" name="username" required>
 
             <label for="password">Mot de passe</label>
-            <input type="password" id="password" name="password" required>
+            <div style="position:relative;">
+                <input type="password" id="password" name="password" required style="padding-right:36px;">
+                <span onclick="togglePassword('password', this)"
+                      style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; color:#6b7280; font-size:14px;">
+                    👁️
+                </span>
+            </div>
 
             <div class="hint">
                 Pour le TP : <code>baptiste / password123</code>
@@ -118,6 +125,67 @@
 
             <button type="submit">Se connecter</button>
         </form>
+
+        <hr style="margin:20px 0; border:none; border-top:1px solid #e5e7eb;">
+
+        <!-- Lien pour afficher le formulaire de création de compte -->
+        <p style="text-align:center; font-size:13px; color:#6b7280;">
+            Pas encore de compte ?
+            <a href="#"
+               onclick="document.getElementById('register-box').style.display='block'; this.parentElement.style.display='none';"
+               style="color:#2563eb; text-decoration:none; font-weight:500;">
+               Créer un compte
+            </a>
+        </p>
+
+        <!-- Formulaire de création de compte sur la même page -->
+        <div id="register-box" style="display:none; margin-top:15px;">
+
+            <h1 style="font-size:18px; margin-bottom:10px; text-align:center;">Créer un compte</h1>
+
+            <form method="POST" action="/register">
+                <label for="reg_username">Nom d'utilisateur</label>
+                <input type="text" id="reg_username" name="username" required>
+
+                <label for="reg_password">Mot de passe</label>
+                <div style="position:relative;">
+                    <input type="password" id="reg_password" name="password" required style="padding-right:36px;">
+                    <span onclick="togglePassword('reg_password', this)"
+                          style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; color:#6b7280; font-size:14px;">
+                        👁️
+                    </span>
+                </div>
+
+                <button type="submit" style="
+                    width:100%;
+                    border:none;
+                    outline:none;
+                    cursor:pointer;
+                    border-radius:999px;
+                    padding:9px 14px;
+                    font-size:14px;
+                    font-weight:500;
+                    background:#10b981;
+                    color:white;
+                    margin-top:10px;
+                ">
+                    Créer mon compte
+                </button>
+            </form>
+
+        </div>
     </div>
 </body>
+<script>
+    function togglePassword(id, el) {
+        const input = document.getElementById(id);
+        if (input.type === "password") {
+            input.type = "text";
+            el.textContent = "🙈";
+        } else {
+            input.type = "password";
+            el.textContent = "👁️";
+        }
+    }
+</script>
 </html>

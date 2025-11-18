@@ -1,16 +1,11 @@
 from flask import Flask, request, jsonify
-from authlib.jose import jwt
-import datetime
-from authlib.jose.errors import ExpiredTokenError, JoseError
+import secrets
 import time
 
 app = Flask(__name__)
 
-# Clé secrète pour signer les JWT (à NE PAS exposer en prod)
-SECRET_KEY = "change-me-super-secret"
 
-# Pour le TP : un "vrai-faux" user en dur
-# Tu pourras plus tard le remplacer par une vraie base ou un appel au User Service.
+
 
 DUMMY_USER = {
     "id": 1,
@@ -24,42 +19,38 @@ USERS = {
     DUMMY_USER["username"]: DUMMY_USER
 }
 
+# Stores en mémoire pour les tokens opaques (stateful, effacés au redémarrage)
+SESSIONS = {}        # access_token -> {"sub": user_id, "username": ..., "exp": ...}
+REFRESH_TOKENS = {}  # refresh_token -> {"sub": user_id, "username": ..., "exp": ...}
+
 
 def generate_access_token(user_id: int, username: str) -> str:
     """
-    Génère un access token (JWT) valable 5 minutes avec Authlib.
+    Génère un token opaque d'accès valable 5 minutes.
+    Le token est stocké en mémoire (stateful) dans SESSIONS.
     """
     now = int(time.time())
-    header = {"alg": "HS256"}
-    payload = {
-        "sub": str(user_id),
+    token = secrets.token_urlsafe(32)
+    SESSIONS[token] = {
+        "sub": user_id,
         "username": username,
-        "type": "access",
-        "iat": now,
         "exp": now + 300,  # 5 minutes
     }
-    token = jwt.encode(header, payload, SECRET_KEY)
-    if isinstance(token, bytes):
-        token = token.decode("utf-8")
     return token
 
 
 def generate_refresh_token(user_id: int, username: str) -> str:
     """
-    Génère un refresh token (JWT) valable 1 heure avec Authlib.
+    Génère un token opaque de refresh valable 1 heure.
+    Le token est stocké en mémoire (stateful) dans REFRESH_TOKENS.
     """
     now = int(time.time())
-    header = {"alg": "HS256"}
-    payload = {
-        "sub": str(user_id),
+    token = secrets.token_urlsafe(32)
+    REFRESH_TOKENS[token] = {
+        "sub": user_id,
         "username": username,
-        "type": "refresh",
-        "iat": now,
         "exp": now + 3600,  # 1 heure
     }
-    token = jwt.encode(header, payload, SECRET_KEY)
-    if isinstance(token, bytes):
-        token = token.decode("utf-8")
     return token
 
 
@@ -69,7 +60,7 @@ def login():
     Authentification basique :
     - Reçoit { "username": "...", "password": "..." }
     - Vérifie par rapport à DUMMY_USER
-    - Retourne un JWT si OK
+    - Retourne un couple de tokens opaques (access + refresh) si OK
     """
     data = request.get_json(silent=True) or {}
     username = (data.get("username") or "").strip()
@@ -146,7 +137,7 @@ def register():
 @app.route("/verify", methods=["POST"])
 def verify():
     """
-    Vérifie un JWT.
+    Vérifie un token d'accès opaque (stateful).
     - Reçoit { "token": "..." }
     - Retourne { "valid": bool, "user": {...} } si OK
     """
@@ -157,23 +148,20 @@ def verify():
     if not token:
         return jsonify({"error": "Token manquant"}), 400
 
-    try:
-        claims = jwt.decode(token, SECRET_KEY)
-        # Valide exp, iat, etc. ; lève ExpiredTokenError si expiré
-        claims.validate()
-    except ExpiredTokenError:
+    # Vérification stateful : on regarde si le token existe en mémoire
+    session_info = SESSIONS.get(token)
+    if not session_info:
+        return jsonify({"valid": False, "error": "Token invalide ou révoqué"}), 401
+
+    now = int(time.time())
+    if session_info["exp"] < now:
+        # On supprime le token expiré du store et on signale l'expiration
+        del SESSIONS[token]
         return jsonify({"valid": False, "error": "Token expiré"}), 401
-    except JoseError as e:
-        print("DEBUG /verify invalid token:", repr(e))
-        return jsonify({"valid": False, "error": "Token invalide"}), 401
 
-    if claims.get("type") != "access":
-        return jsonify({"valid": False, "error": "Mauvais type de token"}), 401
-
-    # claims contient le payload du token (sub, username, exp, etc.)
     user_info = {
-        "sub": claims.get("sub"),
-        "username": claims.get("username"),
+        "sub": session_info["sub"],
+        "username": session_info["username"],
     }
 
     return jsonify({"valid": True, "user": user_info}), 200
@@ -182,7 +170,7 @@ def verify():
 @app.route("/refresh", methods=["POST"])
 def refresh():
     """
-    Renvoie un nouvel access token à partir d'un refresh token valide.
+    Renvoie un nouvel access token à partir d'un refresh token opaque valide.
     """
     data = request.get_json(silent=True) or {}
     refresh_token = data.get("refresh_token")
@@ -190,24 +178,26 @@ def refresh():
     if not refresh_token:
         return jsonify({"error": "Refresh token manquant"}), 400
 
-    try:
-        claims = jwt.decode(refresh_token, SECRET_KEY)
-        claims.validate()
-    except ExpiredTokenError:
+    # Vérification stateful du refresh token
+    info = REFRESH_TOKENS.get(refresh_token)
+    if not info:
+        return jsonify({"error": "Refresh token invalide ou révoqué"}), 401
+
+    now = int(time.time())
+    if info["exp"] < now:
+        # On supprime le refresh token expiré
+        del REFRESH_TOKENS[refresh_token]
         return jsonify({"error": "Refresh token expiré"}), 401
-    except JoseError as e:
-        print("DEBUG /refresh invalid token:", repr(e))
-        return jsonify({"error": "Refresh token invalide"}), 401
 
-    if claims.get("type") != "refresh":
-        return jsonify({"error": "Mauvais type de token"}), 401
-
-    new_access = generate_access_token(int(claims["sub"]), claims["username"])
+    # On génère un nouveau access token pour le même utilisateur
+    user_id = int(info["sub"])
+    username = info["username"]
+    new_access = generate_access_token(user_id, username)
 
     return jsonify({
         "access_token": new_access,
-        "user_id": claims["sub"],
-        "username": claims["username"],
+        "user_id": user_id,
+        "username": username,
     }), 200
 
 

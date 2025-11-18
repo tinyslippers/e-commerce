@@ -150,6 +150,7 @@ def process_payment_with_breaker(payload):
 
 # ================== Routes ==================
 
+
 @bp.route("/", methods=["GET", "POST"])
 def login():
     """
@@ -196,6 +197,61 @@ def login():
         return redirect(url_for("main.articles"))
 
     return render_template("login.html")
+
+
+# ----- Création de compte côté Gateway -----
+@bp.route("/register", methods=["POST"])
+def register():
+    """
+    Création de compte côté Gateway :
+    - Récupère le formulaire de login.html
+    - Appelle Auth Service /register
+    - Si succès : stocke les tokens en session et redirige vers les articles
+    - Si erreur : réaffiche login.html avec le message d'erreur
+    """
+    username = (request.form.get("username") or "").strip()
+    password = (request.form.get("password") or "").strip()
+    email = (request.form.get("email") or "").strip()
+
+    if not username or not password:
+        return render_template("login.html", error="Nom d'utilisateur et mot de passe requis pour créer un compte.")
+
+    payload = {
+        "username": username,
+        "password": password,
+        "email": email,
+    }
+
+    try:
+        resp = requests.post(
+            f"{AUTH_SERVICE_URL}/register",
+            json=payload,
+            timeout=3,
+        )
+    except requests.RequestException:
+        return render_template("login.html", error="Service d'inscription indisponible. Réessayez plus tard.")
+
+    if resp.status_code not in (200, 201):
+        data = resp.json() if resp.content else {}
+        error_msg = data.get("error", "Erreur lors de la création du compte.")
+        return render_template("login.html", error=error_msg)
+
+    data = resp.json()
+    access_token = data.get("access_token")
+    refresh_token = data.get("refresh_token")
+
+    if not access_token:
+        return render_template("login.html", error="Réponse invalide du service d'inscription.")
+
+    # Stockage des tokens et infos utilisateur en session
+    session["access_token"] = access_token
+    if refresh_token:
+        session["refresh_token"] = refresh_token
+    session["username"] = data.get("username", username)
+    session["user_id"] = data.get("user_id")
+    session.pop("cart", None)
+
+    return redirect(url_for("main.articles"))
 
 
 @bp.route("/articles")
